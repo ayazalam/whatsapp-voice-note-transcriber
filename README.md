@@ -18,12 +18,60 @@ language comes back in its own script.
 
 ## Install
 
+### From the Chrome Web Store
+
+<https://chromewebstore.google.com/detail/focfcilphmfahkmknffmoaobomgedicn>
+
+### From source
+
+There is no build step, no bundler and no dependencies. What is in this repository is
+exactly what runs in the browser, which is the point: you can read every line before
+you trust it with your messages.
+
+```bash
+git clone https://github.com/ayazalam/whatsapp-voice-note-transcriber.git
+```
+
+Then:
+
 1. Open `chrome://extensions`
-2. Turn on **Developer mode** (top right)
-3. **Load unpacked** → select this folder (`chrome-ext`)
-4. Click the extension icon → paste your ElevenLabs API key → **Test key** → **Save**
-   (get a key at <https://elevenlabs.io/app/settings/api-keys>)
-5. Reload your WhatsApp Web tab
+2. Turn on **Developer mode**, top right
+3. Click **Load unpacked** and select the cloned folder, the one containing
+   `manifest.json`
+4. Click the extension icon, paste your ElevenLabs API key, press **Test key**, then
+   **Save**. Get a key at <https://elevenlabs.io/app/settings/api-keys>
+5. Reload your WhatsApp Web tab. This step is required, because content scripts only
+   inject on page load
+
+The extension runs entirely in your browser. There is no server to host, nothing to
+deploy and no account to create. "Self hosting" here just means running your own copy
+from source.
+
+### After you change a file
+
+1. Press the reload arrow on the extension's card in `chrome://extensions`
+2. Hard refresh the WhatsApp tab with `Ctrl+Shift+R`
+
+Order matters. Reloading the extension orphans the content script already running in
+the page, and the orphan will tell you to reload the tab rather than failing silently.
+
+### Running the romanizer outside the browser
+
+Every script module works under plain Node with no install step, which makes it easy
+to test a change to a mapping table:
+
+```bash
+node -e "
+global.window = {};
+require('./router.js');
+require('./transliterate.js');
+require('./scripts/cyrillic.js');
+console.log(window.WVT_translit('Здравствуйте, मुझे कल चाहिए'));
+"
+```
+
+Load only the modules you need. `router.js` splits text by Unicode range and hands each
+run to whichever module claims it, so anything unclaimed passes through untouched.
 
 ## Use
 
