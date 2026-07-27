@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Voice Note Transcriber</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #111b21;
+    --muted: #667781;
+    --accent: #027d68;
+    --surface: #ffffff;
+    --bg: #f7f8fa;
+    --border: #e2e5e9;
+    --error: #b03a2e;
+    --ok: #027d68;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e9edef;
+      --muted: #8696a0;
+      --accent: #21c063;
+      --surface: #111b21;
+      --bg: #0b141a;
+      --border: #2a3942;
+      --error: #f15c6d;
+      --ok: #21c063;
+    }
+  }
+
+  body {
+    margin: 0;
+    padding: 18px;
+    min-width: 360px;
+    max-width: 560px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  h1 {
+    margin: 0 0 2px;
+    font-size: 16px;
+  }
+
+  .sub {
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  label.field {
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  label.field:last-child {
+    margin-bottom: 0;
+  }
+
+  .label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .hint {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+
+  input[type="password"],
+  input[type="text"],
+  select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  input:focus, select:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: 1px;
+  }
+
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .check {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+
+  .check:last-child { margin-bottom: 0; }
+
+  .check input {
+    margin: 3px 0 0;
+    flex: none;
+  }
+
+  button {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: var(--accent); color: var(--accent); }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  button.primary:hover { opacity: 0.9; color: #fff; }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .msg { font-size: 12.5px; }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--error); }
+
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <h1>WhatsApp Voice Note Transcriber</h1>
+  <p class="sub">ElevenLabs Scribe v2 &middot; runs only on web.whatsapp.com</p>
+
+  <div class="card">
+    <label class="field">
+      <span class="label">ElevenLabs API key</span>
+      <div class="row">
+        <input id="apiKey" type="password" placeholder="sk_..." autocomplete="off" spellcheck="false" />
+        <button type="button" id="reveal" title="Show / hide">👁</button>
+      </div>
+      <div class="hint">
+        Stored locally in this browser profile only. Get one at
+        <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer">elevenlabs.io</a>.
+      </div>
+    </label>
+
+    <label class="field">
+      <span class="label">Show transcript as</span>
+      <select id="style">
+        <option value="hinglish">Latin letters (Hinglish, Roman Urdu, pinyin&hellip;)</option>
+        <option value="devanagari">Original script</option>
+        <option value="both">Both, stacked</option>
+      </select>
+      <div class="hint">
+        You can flip between the two on any transcript with the toggle. 25 writing systems
+        are romanised; anything already written in Latin is left alone.
+      </div>
+    </label>
+
+    <label class="field">
+      <span class="label">Language</span>
+      <select id="langMode">
+        <option value="auto">Auto-detect (handles Hindi + English mixing)</option>
+        <option value="hi">Force Hindi</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="hint" style="margin-bottom:12px">
+      <strong>How it reads the audio.</strong> WhatsApp keeps voice notes out of the page
+      until you press play, so the extension triggers its download and intercepts the
+      audio at the moment playback would start &mdash; the real <code>play()</code> is
+      never called, so nothing is audible. WhatsApp may still register the note as
+      played on its side (blue mic for the sender); that part is out of the
+      extension's hands.
+    </div>
+    <div class="check">
+      <input type="checkbox" id="diarize" />
+      <span>
+        <strong>Separate speakers</strong>
+        <div class="hint">Useful for forwarded recordings with more than one voice.</div>
+      </span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button type="button" class="primary" id="save">Save</button>
+      <button type="button" id="test">Test key</button>
+      <button type="button" id="clear">Clear cache</button>
+      <span class="msg" id="msg"></span>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

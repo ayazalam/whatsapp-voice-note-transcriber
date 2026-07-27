@@ -1,0 +1,163 @@
+/* Voice note transcriber UI — sits under the bubble, sized to actually be read. */
+
+.wvt-wrap {
+  --wvt-fg: #0b141a;
+  --wvt-muted: #5c6b73;
+  --wvt-accent: #017561;
+  --wvt-panel: #ffffff;
+  --wvt-border: rgba(0, 0, 0, 0.12);
+  --wvt-chip: rgba(0, 0, 0, 0.05);
+  --wvt-error: #a8342a;
+
+  display: block;
+  width: 100%;
+  flex-basis: 100%;
+  clear: both;
+  margin: 3px 0 6px;
+  box-sizing: border-box;
+  font-family: inherit;
+  color: var(--wvt-fg);
+}
+
+body.dark .wvt-wrap,
+html.dark .wvt-wrap,
+[data-theme="dark"] .wvt-wrap {
+  --wvt-fg: #f1f5f7;
+  --wvt-muted: #9fb0ba;
+  --wvt-accent: #2ee06f;
+  --wvt-panel: #1d2a32;
+  --wvt-border: rgba(255, 255, 255, 0.14);
+  --wvt-chip: rgba(255, 255, 255, 0.09);
+  --wvt-error: #ff8a95;
+}
+
+/* Rows span the whole chat width, so mirror the bubble's own side. */
+.wvt-wrap.wvt-in {
+  padding: 0 18% 0 12px;
+}
+
+.wvt-wrap.wvt-out {
+  padding: 0 12px 0 18%;
+  text-align: right;
+}
+
+@media (max-width: 1100px) {
+  .wvt-wrap.wvt-in { padding-right: 8%; }
+  .wvt-wrap.wvt-out { padding-left: 8%; }
+}
+
+.wvt-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wvt-wrap.wvt-out .wvt-bar,
+.wvt-wrap.wvt-out .wvt-actions {
+  justify-content: flex-end;
+}
+
+.wvt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border: 1px solid var(--wvt-border);
+  border-radius: 14px;
+  background: var(--wvt-chip);
+  color: var(--wvt-accent);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.wvt-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wvt-accent) 18%, transparent);
+}
+
+.wvt-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.wvt-btn svg { flex: none; }
+
+.wvt-status {
+  font-size: 12.5px;
+  color: var(--wvt-muted);
+}
+
+.wvt-status.wvt-error {
+  color: var(--wvt-error);
+  font-weight: 500;
+}
+
+.wvt-status.wvt-busy::after {
+  content: "";
+  animation: wvt-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes wvt-dots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+.wvt-result {
+  display: inline-block;
+  max-width: 68ch;
+  margin-top: 6px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--wvt-border);
+  border-left: 3px solid var(--wvt-accent);
+  background: var(--wvt-panel);
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.wvt-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: 0.005em;
+  color: var(--wvt-fg);
+}
+
+.wvt-secondary {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--wvt-border);
+  font-size: 14.5px;
+  color: var(--wvt-muted);
+}
+
+.wvt-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 9px;
+}
+
+.wvt-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wvt-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.wvt-link:hover {
+  color: var(--wvt-accent);
+  text-decoration: underline;
+}

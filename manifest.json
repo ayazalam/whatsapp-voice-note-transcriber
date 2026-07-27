@@ -1,0 +1,89 @@
+{
+  "manifest_version": 3,
+  "name": "Voice Note Transcriber for WhatsApp™",
+  "version": "1.1.0",
+  "description": "Transcribe WhatsApp Web voice notes with ElevenLabs Scribe v2 and read them in Latin letters — 90+ languages, 25 writing systems.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://api.elevenlabs.io/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "page-hook.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "scripts/arabic.js",
+        "scripts/armenian.js",
+        "scripts/bengali.js",
+        "scripts/cyrillic.js",
+        "scripts/ethiopic.js",
+        "scripts/georgian.js",
+        "scripts/greek.js",
+        "scripts/gujarati.js",
+        "scripts/gurmukhi.js",
+        "scripts/han.js",
+        "scripts/hangul.js",
+        "scripts/hebrew.js",
+        "scripts/kana.js",
+        "scripts/kannada.js",
+        "scripts/khmer.js",
+        "scripts/lao.js",
+        "scripts/malayalam.js",
+        "scripts/myanmar.js",
+        "scripts/odia.js",
+        "scripts/punctuation.js",
+        "scripts/sinhala.js",
+        "scripts/tamil.js",
+        "scripts/telugu.js",
+        "scripts/thaana.js",
+        "scripts/thai.js",
+        "transliterate.js",
+        "router.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "options.html",
+    "default_title": "Voice Note Transcriber settings",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,19 @@
+# Build output
+*.zip
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Never commit a key. Settings live in chrome.storage.local, not in a file,
+# but this is here so a stray scratch file cannot leak one.
+.env
+.env.*
+*.key
+secrets.json
