@@ -57,4 +57,5 @@ reading it — there is no minified or obfuscated code in the package.
 
 ## Contact
 
-Questions or concerns: open an issue on the GitHub repository.
+Questions or concerns: open an issue on the GitHub repository, or email
+<hello@autoclips.app>.
