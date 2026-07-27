@@ -17,3 +17,6 @@ Desktop.ini
 .env.*
 *.key
 secrets.json
+
+# Store assets live outside the extension package
+icons/image-*.png
