@@ -98,22 +98,75 @@ async function transcribe(msg) {
   };
 }
 
+/**
+ * Verify the key against the endpoint the extension actually uses.
+ *
+ * The obvious check, GET /v1/user/subscription, needs the `user_read` scope. A key
+ * scoped only to speech-to-text does not have it, so that check reported "Key
+ * rejected" for keys that transcribe perfectly well.
+ *
+ * Instead: POST to speech-to-text with no file. Authentication is evaluated before
+ * the body is validated, so a working key comes back with a validation error while a
+ * bad one comes back 401. Nothing is transcribed, so nothing is billed.
+ */
 async function testKey(key) {
+  const apiKey = (key || "").trim();
+  if (!apiKey) return { ok: false, error: "No key entered." };
+
+  let res;
+  try {
+    const probe = new FormData();
+    probe.append("model_id", MODEL_ID); // deliberately no file
+    res = await fetch(STT_URL, {
+      method: "POST",
+      headers: { "xi-api-key": apiKey },
+      body: probe
+    });
+  } catch (e) {
+    return { ok: false, error: `Network error reaching ElevenLabs: ${e.message}` };
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      const d = body && body.detail;
+      detail = (d && (d.message || d.status)) || (typeof d === "string" ? d : "");
+    } catch (_) {}
+    if (/permission/i.test(detail)) {
+      return {
+        ok: false,
+        error: "Key is valid but lacks Speech to Text permission. Enable it on the key in your ElevenLabs dashboard."
+      };
+    }
+    return { ok: false, error: "Key rejected by ElevenLabs." + (detail ? ` (${detail})` : "") };
+  }
+
+  if (res.status === 429) {
+    return { ok: true, note: "Key works. You are currently rate limited." };
+  }
+
+  // Any other status means authentication succeeded; the empty body was rejected,
+  // which is exactly what we expect from this probe.
+  const info = await quota(apiKey);
+  return { ok: true, ...info };
+}
+
+/** Quota display is a bonus. A key without `user_read` still works for transcription. */
+async function quota(apiKey) {
   try {
     const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
-      headers: { "xi-api-key": (key || "").trim() }
+      headers: { "xi-api-key": apiKey }
     });
-    if (res.status === 401 || res.status === 403) return { ok: false, error: "Key rejected." };
-    if (!res.ok) return { ok: false, error: `ElevenLabs returned ${res.status}.` };
+    if (!res.ok) return {};
     const data = await res.json();
     return {
-      ok: true,
       tier: data.tier || "",
       used: data.character_count,
       limit: data.character_limit
     };
-  } catch (e) {
-    return { ok: false, error: e.message };
+  } catch (_) {
+    return {};
   }
 }
 

@@ -51,6 +51,9 @@ $("test").addEventListener("click", async () => {
   say("Checking…");
   const res = await chrome.runtime.sendMessage({ type: "testKey", key });
   if (res && res.ok) {
+    if (res.note) return say(res.note, "ok");
+    // Quota only shows when the key also carries the user_read scope. Its absence
+    // says nothing about whether transcription works.
     const quota =
       Number.isFinite(res.used) && Number.isFinite(res.limit)
         ? ` · ${res.used.toLocaleString()}/${res.limit.toLocaleString()} credits used`
