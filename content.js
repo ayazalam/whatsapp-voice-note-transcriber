@@ -128,22 +128,75 @@
   const VOICE_HINTS =
     '[data-icon="ptt-status"], [aria-label="Voice message"], [aria-label="Play voice message"]';
 
+  /**
+   * A real press, not just .click(). React surfaces frequently bind pointer
+   * handlers, and a bare click() never reaches those.
+   */
+  function press(el) {
+    const opts = { bubbles: true, cancelable: true, composed: true };
+    try {
+      el.dispatchEvent(new PointerEvent("pointerdown", opts));
+      el.dispatchEvent(new MouseEvent("mousedown", opts));
+      el.dispatchEvent(new PointerEvent("pointerup", opts));
+      el.dispatchEvent(new MouseEvent("mouseup", opts));
+    } catch (_) {}
+    try {
+      el.click();
+    } catch (_) {}
+  }
+
+  /**
+   * The play control, without depending on the interface language.
+   *
+   * Matching aria-label text only works on an English WhatsApp. On any other
+   * language the label differs, the old chain fell through to the ptt-status
+   * icon, and clicking that did nothing: no download, no audio, a 30 second
+   * timeout. So the English labels are a fast path only, and the real lookup is
+   * structural.
+   *
+   * Inside a voice note the play control is the icon-only button. The playback
+   * speed control always renders visible text ("1.5x"), which is what separates
+   * them in every language.
+   */
+  function iconOnlyButtons(scope) {
+    return [...scope.querySelectorAll('button, [role="button"]')].filter((b) => {
+      if (b.getAttribute("role") === "slider" || b.closest('[role="slider"]')) return false;
+      if ((b.textContent || "").trim()) return false; // speed toggle shows "1.5x"
+      return !!b.querySelector("svg");
+    });
+  }
+
+  function voiceNoteScope(row) {
+    // The progress bar is exposed as a slider in every language, so it is a
+    // reliable anchor for the player's own container.
+    const slider = row.querySelector('[role="slider"], [aria-label*="progress" i]');
+    if (slider) {
+      const box = slider.closest("div")?.parentElement;
+      if (box) return box;
+    }
+    return row;
+  }
+
   function findPlayButton(row) {
-    // Exact label first. Note "Change playback speed" also contains "play",
-    // so never match on a bare substring.
-    const el =
+    const exact =
       row.querySelector('[aria-label="Play voice message"]') ||
-      row.querySelector('[aria-label^="Play" i]') ||
-      row.querySelector('[data-icon="ptt-status"]');
-    if (!el) return null;
-    return el.closest('button, [role="button"]') || el;
+      row.querySelector('[aria-label^="Play voice" i]');
+    if (exact) return exact.closest('button, [role="button"]') || exact;
+
+    const scoped = iconOnlyButtons(voiceNoteScope(row));
+    if (scoped.length) return scoped[0];
+
+    const anywhere = iconOnlyButtons(row);
+    return anywhere.length ? anywhere[0] : null;
   }
 
   function findPauseButton(row) {
-    const el =
+    const exact =
       row.querySelector('[aria-label="Pause voice message"]') ||
-      row.querySelector('[aria-label^="Pause" i]');
-    return el ? el.closest('button, [role="button"]') || el : null;
+      row.querySelector('[aria-label^="Pause voice" i]');
+    if (exact) return exact.closest('button, [role="button"]') || exact;
+    // Same element toggles between play and pause, so reuse the structural lookup.
+    return findPlayButton(row);
   }
 
   /**
@@ -173,7 +226,7 @@
       setTimeout(() => {
         if (pending.has(id)) {
           pending.delete(id);
-          resolve({ ok: false, error: "timed out waiting for the audio" });
+          resolve({ ok: false, error: "Timed out. WhatsApp did not start downloading the audio." });
         }
       }, 30000);
     });
@@ -183,7 +236,7 @@
     await sleep(0);
 
     onStatus("Fetching audio…");
-    playBtn.click();
+    press(playBtn);
 
     let res;
     try {
@@ -197,7 +250,7 @@
       const pauseBtn = findPauseButton(row);
       if (pauseBtn) {
         try {
-          pauseBtn.click();
+          press(pauseBtn);
         } catch (_) {}
       }
 
