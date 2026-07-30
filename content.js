@@ -158,45 +158,65 @@
    * speed control always renders visible text ("1.5x"), which is what separates
    * them in every language.
    */
-  function iconOnlyButtons(scope) {
-    return [...scope.querySelectorAll('button, [role="button"]')].filter((b) => {
-      if (b.getAttribute("role") === "slider" || b.closest('[role="slider"]')) return false;
-      if ((b.textContent || "").trim()) return false; // speed toggle shows "1.5x"
-      return !!b.querySelector("svg");
-    });
-  }
+  /**
+   * WhatsApp's own icon names travel with the markup and do not translate, so
+   * they identify a control in any interface language. The visible aria-labels
+   * do not: "Download voice message" is "Descargar mensaje de voz" in Spanish.
+   */
+  const controlIcon = (el) => ((el && el.textContent) || "").trim().toLowerCase();
 
-  function voiceNoteScope(row) {
-    // The progress bar is exposed as a slider in every language, so it is a
-    // reliable anchor for the player's own container.
-    const slider = row.querySelector('[role="slider"], [aria-label*="progress" i]');
+  const isDownloadControl = (el) => /download/.test(controlIcon(el));
+
+  /**
+   * The transport control: play, pause, or download, whichever WhatsApp is
+   * currently showing.
+   *
+   * Position is the reliable signal. The transport button sits before the
+   * progress slider in document order and the playback speed control sits after
+   * it, in every language and every media state. Matching on aria-label text
+   * only ever worked on an English interface, and matching on "button with an
+   * icon and no text" fails because WhatsApp's SVGs carry their icon name as
+   * text content.
+   */
+  function findTransportButton(row) {
+    const buttons = [...row.querySelectorAll("button")].filter(
+      (b) => !b.closest(".wvt-wrap") // never our own UI
+    );
+    if (!buttons.length) return null;
+
+    const slider = row.querySelector('[role="slider"]');
     if (slider) {
-      const box = slider.closest("div")?.parentElement;
-      if (box) return box;
+      const before = buttons.filter(
+        (b) => b.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      if (before.length) return before[before.length - 1];
     }
-    return row;
+
+    // No slider: fall back to the first button that is not the speed control,
+    // which always renders a rate like "1x" or "1.5x".
+    return buttons.find((b) => !/\d\s*[.,]?\d*\s*[x×]/i.test(b.textContent || "")) || null;
   }
 
-  function findPlayButton(row) {
-    const exact =
-      row.querySelector('[aria-label="Play voice message"]') ||
-      row.querySelector('[aria-label^="Play voice" i]');
-    if (exact) return exact.closest('button, [role="button"]') || exact;
+  // Kept for the pause step; the same element toggles between states.
+  const findPlayButton = findTransportButton;
+  const findPauseButton = findTransportButton;
 
-    const scoped = iconOnlyButtons(voiceNoteScope(row));
-    if (scoped.length) return scoped[0];
+  /**
+   * A voice note that has never been opened shows a download control instead of
+   * play. Press it and wait for WhatsApp to fetch the media, otherwise there is
+   * nothing to capture and the whole thing times out.
+   */
+  async function ensureDownloaded(row, onStatus) {
+    const btn = findTransportButton(row);
+    if (!btn || !isDownloadControl(btn)) return;
 
-    const anywhere = iconOnlyButtons(row);
-    return anywhere.length ? anywhere[0] : null;
-  }
+    onStatus("Downloading…");
+    press(btn);
 
-  function findPauseButton(row) {
-    const exact =
-      row.querySelector('[aria-label="Pause voice message"]') ||
-      row.querySelector('[aria-label^="Pause voice" i]');
-    if (exact) return exact.closest('button, [role="button"]') || exact;
-    // Same element toggles between play and pause, so reuse the structural lookup.
-    return findPlayButton(row);
+    await waitFor(() => {
+      const next = findTransportButton(row);
+      return next && !isDownloadControl(next) ? next : null;
+    }, 25000);
   }
 
   /**
@@ -210,14 +230,24 @@
    * the real play(). The audio pipeline is never engaged — nothing is audible.
    */
   async function captureAudio(row, onStatus) {
-    const playBtn = findPlayButton(row);
-    if (!playBtn) throw new Error("Couldn't find this note's play control.");
+    if (!findTransportButton(row)) {
+      throw new Error("Couldn't find this note's controls.");
+    }
 
     // Without the page hook there is nothing suppressing playback, and clicking
     // play would just play the note out loud. Refuse rather than do that.
     const alive = await askPage("ping", {}, 2000);
     if (!alive.ok) {
       throw new Error("Page hook not active — reload the WhatsApp tab (Ctrl+Shift+R).");
+    }
+
+    // An unopened note shows download where play normally is. Fetch it first.
+    await ensureDownloaded(row, onStatus);
+
+    const playBtn = findTransportButton(row);
+    if (!playBtn) throw new Error("Couldn't find this note's play control.");
+    if (isDownloadControl(playBtn)) {
+      throw new Error("WhatsApp did not finish downloading this note. Try again.");
     }
 
     const id = ++bridgeSeq;
