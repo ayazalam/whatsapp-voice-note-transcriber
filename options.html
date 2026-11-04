@@ -2,224 +2,203 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Voice Note Transcriber</title>
 <style>
   :root {
     color-scheme: light dark;
-    --fg: #111b21;
-    --muted: #667781;
-    --accent: #027d68;
-    --surface: #ffffff;
-    --bg: #f7f8fa;
-    --border: #e2e5e9;
-    --error: #b03a2e;
-    --ok: #027d68;
+    --fg: #17272c;
+    --muted: #5e7178;
+    --accent: #087f69;
+    --accent-ink: #fff;
+    --surface: #fff;
+    --bg: #f4f7f6;
+    --border: #dce6e3;
+    --error: #ad352e;
+    --ok: #087f69;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --fg: #e9edef;
-      --muted: #8696a0;
-      --accent: #21c063;
-      --surface: #111b21;
-      --bg: #0b141a;
-      --border: #2a3942;
-      --error: #f15c6d;
-      --ok: #21c063;
+      --fg: #eaf3f0;
+      --muted: #a4b7b3;
+      --accent: #35c895;
+      --accent-ink: #08251c;
+      --surface: #142521;
+      --bg: #0b1917;
+      --border: #2c4942;
+      --error: #ff8b80;
+      --ok: #5de0ad;
     }
   }
-
+  * { box-sizing: border-box; }
   body {
+    width: 390px;
+    max-width: 100%;
     margin: 0;
-    padding: 18px;
-    min-width: 360px;
-    max-width: 560px;
+    padding: 20px;
     background: var(--bg);
     color: var(--fg);
-    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-
-  h1 {
-    margin: 0 0 2px;
-    font-size: 16px;
+  button, input, select { font: inherit; }
+  button { cursor: pointer; }
+  :is(button, input, select, summary, a):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
-
-  .sub {
-    margin: 0 0 16px;
-    color: var(--muted);
-    font-size: 12.5px;
+  header { margin-bottom: 18px; }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand-mark {
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+    width: 35px; height: 35px; border-radius: 11px;
+    color: var(--accent-ink); background: var(--accent); flex: none;
   }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 12px;
+  .brand-mark span { width: 3px; border-radius: 2px; background: currentColor; }
+  .brand-mark span:nth-child(1), .brand-mark span:nth-child(3) { height: 9px; }
+  .brand-mark span:nth-child(2) { height: 18px; }
+  h1 { margin: 0; font-size: 16px; line-height: 1.25; letter-spacing: -.02em; }
+  .sub { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+  .panel {
+    padding: 16px; margin-bottom: 10px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
   }
-
-  label.field {
-    display: block;
-    margin-bottom: 12px;
+  .panel h2 { margin: 0 0 14px; font-size: 14px; line-height: 1.3; }
+  .field-label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
+  .key-row { display: flex; gap: 7px; }
+  .key-input { position: relative; flex: 1; min-width: 0; }
+  .key-input input {
+    width: 100%; height: 38px; padding: 0 48px 0 11px;
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--fg); background: var(--bg);
   }
-
-  label.field:last-child {
-    margin-bottom: 0;
+  .reveal {
+    position: absolute; right: 3px; top: 3px; width: 41px; height: 32px;
+    border: 0; border-radius: 6px; color: var(--muted);
+    background: transparent; font-size: 11px; font-weight: 600;
   }
-
-  .label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 12.5px;
-    font-weight: 600;
+  .reveal:hover { color: var(--fg); background: var(--border); }
+  .primary {
+    min-height: 38px; padding: 0 12px; border: 1px solid var(--accent);
+    border-radius: 8px; color: var(--accent-ink); background: var(--accent); font-weight: 650;
   }
-
-  .hint {
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 11.5px;
+  .primary:hover { filter: brightness(.94); }
+  .key-meta {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 10px; margin-top: 8px;
   }
-
-  input[type="password"],
-  input[type="text"],
+  .hint { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .text-action {
+    padding: 0; border: 0; color: var(--accent); background: none;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .text-action:hover { text-decoration: underline; }
+  .feedback { display: block; margin-top: 7px; font-size: 12px; }
+  .feedback:empty { display: none; }
+  .feedback.ok { color: var(--ok); }
+  .feedback.err { color: var(--error); }
   select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
-    font-size: 13px;
+    width: 100%; height: 38px; padding: 0 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--fg); background: var(--bg);
   }
-
-  input:focus, select:focus {
-    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-    outline-offset: 1px;
+  .field-hint { margin-top: 7px; }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--border); cursor: pointer;
   }
-
-  .row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+  .setting-row strong { display: block; font-size: 13px; }
+  .setting-row .hint { display: block; margin-top: 2px; }
+  .switch { position: relative; display: inline-flex; flex: none; width: 38px; height: 22px; }
+  .switch input {
+    position: absolute; opacity: 0; width: 100%; height: 100%;
+    margin: 0; cursor: pointer;
   }
-
-  .check {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    margin-bottom: 10px;
-    font-size: 13px;
+  .track { width: 100%; border-radius: 99px; background: var(--border); transition: background .15s; }
+  .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--surface); box-shadow: 0 1px 3px #0003; transition: transform .15s;
   }
-
-  .check:last-child { margin-bottom: 0; }
-
-  .check input {
-    margin: 3px 0 0;
-    flex: none;
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(16px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .track, .track::after { transition: none; }
   }
-
-  button {
-    padding: 8px 14px;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    background: var(--surface);
-    color: var(--fg);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
+  details { margin: 14px 1px 0; color: var(--muted); font-size: 12px; }
+  summary { cursor: pointer; color: var(--fg); font-weight: 600; }
+  details p { margin: 9px 0 0; line-height: 1.55; }
+  footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 19px; padding-top: 12px; border-top: 1px solid var(--border);
   }
-
-  button:hover { border-color: var(--accent); color: var(--accent); }
-
-  button.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 600;
-  }
-
-  button.primary:hover { opacity: 0.9; color: #fff; }
-
-  .actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .msg { font-size: 12.5px; }
-  .msg.ok { color: var(--ok); }
-  .msg.err { color: var(--error); }
-
-  a { color: var(--accent); }
+  .cache-action { color: var(--muted); text-align: left; }
+  .cache-action:hover { color: var(--error); }
+  .cache-action:disabled { opacity: .55; cursor: default; text-decoration: none; }
+  footer .hint { text-align: right; }
 </style>
 </head>
 <body>
-  <h1>WhatsApp Voice Note Transcriber</h1>
-  <p class="sub">ElevenLabs Scribe v2 &middot; runs only on web.whatsapp.com</p>
-
-  <div class="card">
-    <label class="field">
-      <span class="label">ElevenLabs API key</span>
-      <div class="row">
-        <input id="apiKey" type="password" placeholder="sk_..." autocomplete="off" spellcheck="false" />
-        <button type="button" id="reveal" title="Show / hide">👁</button>
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div>
+        <h1>Voice Note Transcriber</h1>
+        <p class="sub">ElevenLabs Scribe v2 for WhatsApp Web</p>
       </div>
-      <div class="hint">
-        Stored locally in this browser profile only. Get one at
-        <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer">elevenlabs.io</a>.
-      </div>
-    </label>
-
-    <label class="field">
-      <span class="label">Show transcript as</span>
-      <select id="style">
-        <option value="hinglish">Latin letters (Hinglish, Roman Urdu, pinyin&hellip;)</option>
-        <option value="devanagari">Original script</option>
-        <option value="both">Both, stacked</option>
-      </select>
-      <div class="hint">
-        You can flip between the two on any transcript with the toggle. 25 writing systems
-        are romanised; anything already written in Latin is left alone.
-      </div>
-    </label>
-
-    <label class="field">
-      <span class="label">Language</span>
-      <select id="langMode">
-        <option value="auto">Auto-detect (handles Hindi + English mixing)</option>
-        <option value="hi">Force Hindi</option>
-      </select>
-    </label>
-  </div>
-
-  <div class="card">
-    <div class="hint" style="margin-bottom:12px">
-      <strong>How it reads the audio.</strong> WhatsApp keeps voice notes out of the page
-      until you press play, so the extension triggers its download and intercepts the
-      audio at the moment playback would start &mdash; the real <code>play()</code> is
-      never called, so nothing is audible. WhatsApp may still register the note as
-      played on its side (blue mic for the sender); that part is out of the
-      extension's hands.
     </div>
-    <div class="check">
-      <input type="checkbox" id="diarize" />
+  </header>
+
+  <section class="panel" aria-labelledby="key-heading">
+    <h2 id="key-heading">ElevenLabs API key</h2>
+    <label class="field-label" for="apiKey">Your key</label>
+    <div class="key-row">
+      <div class="key-input">
+        <input id="apiKey" type="password" placeholder="sk_…" autocomplete="off" spellcheck="false" />
+        <button type="button" id="reveal" class="reveal" aria-label="Show API key" title="Show API key">Show</button>
+      </div>
+      <button type="button" id="saveKey" class="primary">Save key</button>
+    </div>
+    <div class="key-meta">
+      <p class="hint">Stored in this browser. <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer">Get a key ↗</a></p>
+      <button type="button" id="test" class="text-action">Verify key</button>
+    </div>
+    <span class="feedback" id="keyMsg" role="status" aria-live="polite"></span>
+  </section>
+
+  <section class="panel" aria-labelledby="preferences-heading">
+    <h2 id="preferences-heading">Transcription preferences</h2>
+    <label class="field-label" for="style">Script display</label>
+    <select id="style">
+      <option value="original">Original script</option>
+      <option value="latin">Latin letters (transliterated)</option>
+      <option value="both">Both, stacked</option>
+    </select>
+    <p class="hint field-hint">Auto-detects mixed languages and transliterates 25 scripts.</p>
+
+    <label class="setting-row" for="diarize">
       <span>
         <strong>Separate speakers</strong>
-        <div class="hint">Useful for forwarded recordings with more than one voice.</div>
+        <span class="hint">Label multiple voices in forwarded recordings.</span>
       </span>
-    </div>
-  </div>
+      <span class="switch">
+        <input type="checkbox" id="diarize" role="switch" />
+        <span class="track" aria-hidden="true"></span>
+      </span>
+    </label>
+    <span class="feedback" id="prefsMsg" role="status" aria-live="polite"></span>
+  </section>
 
-  <div class="card">
-    <div class="actions">
-      <button type="button" class="primary" id="save">Save</button>
-      <button type="button" id="test">Test key</button>
-      <button type="button" id="clear">Clear cache</button>
-      <span class="msg" id="msg"></span>
-    </div>
-  </div>
+  <details>
+    <summary>How audio works &amp; privacy notes</summary>
+    <p>WhatsApp downloads a note when playback starts. The extension captures that audio and stops playback before sound starts, then sends it to ElevenLabs for transcription. WhatsApp may still mark the note as played.</p>
+  </details>
+
+  <footer>
+    <button type="button" id="clear" class="text-action cache-action" title="Removes saved transcripts only; keeps your API key and preferences.">Clear transcript cache</button>
+    <span class="hint" id="cacheMsg" role="status" aria-live="polite"></span>
+  </footer>
 
   <script src="options.js"></script>
 </body>

@@ -13,8 +13,7 @@
 
   const DEFAULTS = {
     apiKey: "",
-    style: "hinglish", // hinglish | devanagari | both
-    langMode: "auto", // auto | hi
+    style: "original", // latin | original | both
     diarize: false
   };
 
@@ -420,30 +419,31 @@
   }
 
   function render(els, data) {
-    const hinglish = data.hinglish || "";
+    const roman = data.roman || data.hinglish || ""; // old cached transcripts
     const original = data.text || "";
     // Any script we romanise changes the text; if nothing changed it was already
     // Latin and there is nothing to toggle between.
-    const hasDev = !!hinglish && hinglish !== original;
+    const hasRoman = !!roman && roman !== original;
 
-    let showing = settings.style === "devanagari" || !hasDev ? "original" : "hinglish";
+    let showing = ["original", "devanagari"].includes(settings.style) || !hasRoman
+      ? "original" : "latin";
 
     const paint = () => {
-      if (settings.style === "both" && hasDev) {
+      if (settings.style === "both" && hasRoman) {
         els.text.replaceChildren(
-          el("div", null, hinglish),
+          el("div", null, roman),
           el("div", "wvt-secondary", original)
         );
         els.toggle.hidden = true;
       } else {
-        els.text.textContent = showing === "hinglish" ? hinglish : original;
-        els.toggle.hidden = !hasDev;
-        els.toggle.textContent = showing === "hinglish" ? "Original script" : "Roman";
+        els.text.textContent = showing === "latin" ? roman : original;
+        els.toggle.hidden = !hasRoman;
+        els.toggle.textContent = showing === "latin" ? "Original script" : "Latin letters";
       }
     };
 
     els.toggle.onclick = () => {
-      showing = showing === "hinglish" ? "original" : "hinglish";
+      showing = showing === "latin" ? "original" : "latin";
       paint();
     };
 
@@ -451,8 +451,17 @@
     els.result.hidden = false;
     els.label.textContent = "Transcribe";
     els.btn.hidden = true;
-    els.status.textContent = data.lang && data.lang !== "hi" ? data.lang : "";
+    els.status.textContent = languageLabel(data.lang);
     els.status.className = "wvt-status";
+  }
+
+  function languageLabel(code) {
+    if (!code) return "";
+    try {
+      return new Intl.DisplayNames(["en"], { type: "language" }).of(code) || code;
+    } catch (_) {
+      return code;
+    }
   }
 
   function setBusy(els, msg) {
@@ -518,7 +527,6 @@
         type: "transcribe",
         base64,
         mimeType: blob.type || "audio/ogg",
-        language: settings.langMode === "hi" ? "hi" : null,
         diarize: !!settings.diarize
       });
 
@@ -529,7 +537,7 @@
 
       const data = {
         text,
-        hinglish: window.WVT_translit ? window.WVT_translit(text) : text,
+        roman: window.WVT_translit ? window.WVT_translit(text) : text,
         lang: res.language || "",
         ts: Date.now()
       };
@@ -553,6 +561,24 @@
     if (row.querySelector(VOICE_HINTS)) return true;
     if (row.querySelector('[aria-label*="voice message" i], [aria-label*="voice note" i]')) {
       return true;
+    }
+    // WhatsApp localises the labels and no longer always renders ptt-status.
+    // Voice notes have a transport button before the progress slider and a
+    // playback-speed button after it, regardless of the interface language.
+    const slider = row.querySelector('[role="slider"]');
+    if (slider) {
+      const buttons = [...row.querySelectorAll("button")].filter(
+        (button) => !button.closest(".wvt-wrap")
+      );
+      const transport = buttons.some(
+        (button) => button.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      const speed = buttons.some(
+        (button) =>
+          (slider.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+          /\d\s*[.,]?\d*\s*[x×]/i.test(button.textContent || "")
+      );
+      if (transport && speed) return true;
     }
     return !!row.querySelector("audio");
   }

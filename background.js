@@ -66,7 +66,6 @@ async function transcribe(msg) {
   form.append("file", blob, `voice.${extensionFor(msg.mimeType)}`);
   form.append("model_id", MODEL_ID);
   form.append("tag_audio_events", "false");
-  if (msg.language) form.append("language_code", msg.language);
   if (msg.diarize) form.append("diarize", "true");
 
   let res;
