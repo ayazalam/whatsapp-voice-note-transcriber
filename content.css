@@ -17,7 +17,11 @@
   box-sizing: border-box;
   font-family: inherit;
   color: var(--wvt-fg);
+  direction: ltr;
 }
+
+/* Explicit display rules below must not override the hidden attribute. */
+.wvt-wrap [hidden] { display: none !important; }
 
 body.dark .wvt-wrap,
 html.dark .wvt-wrap,
@@ -31,19 +35,19 @@ html.dark .wvt-wrap,
   --wvt-error: #ff8a95;
 }
 
-/* Rows span the whole chat width, so mirror the bubble's own side. */
-.wvt-wrap.wvt-in {
+/* Rows span the chat width; align with the note's actual screen position. */
+.wvt-wrap.wvt-left {
   padding: 0 18% 0 12px;
 }
 
-.wvt-wrap.wvt-out {
+.wvt-wrap.wvt-right {
   padding: 0 12px 0 18%;
   text-align: right;
 }
 
 @media (max-width: 1100px) {
-  .wvt-wrap.wvt-in { padding-right: 8%; }
-  .wvt-wrap.wvt-out { padding-left: 8%; }
+  .wvt-wrap.wvt-left { padding-right: 8%; }
+  .wvt-wrap.wvt-right { padding-left: 8%; }
 }
 
 .wvt-bar {
@@ -53,8 +57,8 @@ html.dark .wvt-wrap,
   flex-wrap: wrap;
 }
 
-.wvt-wrap.wvt-out .wvt-bar,
-.wvt-wrap.wvt-out .wvt-actions {
+.wvt-wrap.wvt-right .wvt-bar,
+.wvt-wrap.wvt-right .wvt-actions {
   justify-content: flex-end;
 }
 
@@ -124,6 +128,7 @@ html.dark .wvt-wrap,
 .wvt-text {
   white-space: pre-wrap;
   overflow-wrap: break-word;
+  text-align: start;
   user-select: text;
   -webkit-user-select: text;
   font-size: 15px;
@@ -138,6 +143,7 @@ html.dark .wvt-wrap,
   border-top: 1px solid var(--wvt-border);
   font-size: 14.5px;
   color: var(--wvt-muted);
+  text-align: start;
 }
 
 .wvt-actions {

@@ -43,6 +43,22 @@
     return false;
   };
 
+  // WhatsApp sometimes leaves Blob.type empty or sets a generic MIME type.
+  // Inspect the container header before accepting a candidate for transcription.
+  async function audioMime(blob) {
+    const b = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+    const has = (offset, text) =>
+      [...text].every((ch, i) => b[offset + i] === ch.charCodeAt(0));
+    if (has(0, "OggS")) return "audio/ogg";
+    if (has(0, "RIFF") && has(8, "WAVE")) return "audio/wav";
+    if (has(0, "fLaC")) return "audio/flac";
+    if (has(0, "ID3") || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return "audio/mpeg";
+    if (has(0, "\x1a\x45\xdf\xa3")) return "audio/webm";
+    if (has(4, "ftyp")) return "audio/mp4";
+    if (b[0] === 0xff && (b[1] & 0xf6) === 0xf0) return "audio/aac";
+    return null;
+  }
+
   const remember = (node) => {
     seen.add(node);
     while (seen.size > MAX_SEEN) seen.delete(seen.values().next().value);
@@ -66,17 +82,25 @@
 
   async function grab(url) {
     if (!capture || capture.done || typeof url !== "string" || !url.startsWith("blob:")) return;
-    capture.done = true;
-    const id = capture.id;
+    const active = capture;
+    if (active.pending.has(url)) return;
+    active.pending.add(url);
     try {
       const res = await fetch(url);
-      if (!res.ok) return reply(id, { ok: false, error: `blob fetch ${res.status}` });
+      if (!res.ok) return;
       const blob = await res.blob();
-      if (!blob || !blob.size) return reply(id, { ok: false, error: "empty blob" });
+      if (!blob || !blob.size || blob.size > MAX_BYTES) return;
+      const detected = await audioMime(blob);
+      const declared = (blob.type || "").toLowerCase();
+      if (!detected && !declared.startsWith("audio/")) return;
+      if (capture !== active || active.done) return;
+      active.done = true;
       // Blob survives structured clone, so the content script gets the real thing.
-      reply(id, { ok: true, blob, type: blob.type, size: blob.size });
-    } catch (e) {
-      reply(id, { ok: false, error: String((e && e.message) || e) });
+      reply(active.id, { ok: true, blob, type: detected || declared, size: blob.size });
+    } catch (_) {
+      // An unrelated or revoked blob must not consume the armed capture.
+    } finally {
+      active.pending.delete(url);
     }
   }
 
@@ -166,7 +190,7 @@
       } else if (action === "arm") {
         // Deferred reply: resolves when we actually have the audio.
         suppressUntil = Date.now() + (ms || 30000);
-        capture = { id, done: false };
+        capture = { id, done: false, pending: new Set() };
       } else if (action === "hold") {
         suppressUntil = Date.now() + (ms || 3000);
         reply(id, { ok: true });

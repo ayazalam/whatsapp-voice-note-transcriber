@@ -10,11 +10,26 @@
 const STT_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 const MODEL_ID = "scribe_v2";
 
+function detectedAudioMime(bytes) {
+  const has = (offset, text) =>
+    [...text].every((ch, i) => bytes[offset + i] === ch.charCodeAt(0));
+  if (has(0, "OggS")) return "audio/ogg";
+  if (has(0, "RIFF") && has(8, "WAVE")) return "audio/wav";
+  if (has(0, "fLaC")) return "audio/flac";
+  if (has(0, "ID3") || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) return "audio/mpeg";
+  if (has(0, "\x1a\x45\xdf\xa3")) return "audio/webm";
+  if (has(4, "ftyp")) return "audio/mp4";
+  if (bytes[0] === 0xff && (bytes[1] & 0xf6) === 0xf0) return "audio/aac";
+  return null;
+}
+
 function base64ToBlob(base64, mimeType) {
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mimeType || "audio/ogg" });
+  const declared = (mimeType || "").toLowerCase();
+  const type = detectedAudioMime(bytes) || (declared.startsWith("audio/") ? declared : "");
+  return new Blob([bytes], { type });
 }
 
 async function getApiKey() {
@@ -61,12 +76,14 @@ async function transcribe(msg) {
 
   const blob = base64ToBlob(msg.base64, msg.mimeType);
   if (!blob.size) return { ok: false, error: "Empty audio." };
+  if (!blob.type) {
+    return { ok: false, error: "WhatsApp returned data that is not recognized as audio. Reload the tab and try again." };
+  }
 
   const form = new FormData();
-  form.append("file", blob, `voice.${extensionFor(msg.mimeType)}`);
+  form.append("file", blob, `voice.${extensionFor(blob.type)}`);
   form.append("model_id", MODEL_ID);
   form.append("tag_audio_events", "false");
-  if (msg.language) form.append("language_code", msg.language);
   if (msg.diarize) form.append("diarize", "true");
 
   let res;

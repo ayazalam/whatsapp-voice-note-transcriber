@@ -13,8 +13,7 @@
 
   const DEFAULTS = {
     apiKey: "",
-    style: "hinglish", // hinglish | devanagari | both
-    langMode: "auto", // auto | hi
+    style: "original", // latin | original | both
     diarize: false
   };
 
@@ -256,7 +255,7 @@
       setTimeout(() => {
         if (pending.has(id)) {
           pending.delete(id);
-          resolve({ ok: false, error: "Timed out. WhatsApp did not start downloading the audio." });
+          resolve({ ok: false, error: "Could not capture valid audio from this note. Reload WhatsApp and try again." });
         }
       }, 30000);
     });
@@ -292,7 +291,9 @@
     if (!res.ok || !res.blob) {
       throw new Error(res.error || "Could not capture the audio.");
     }
-    return res.blob;
+    return res.type && res.type !== res.blob.type
+      ? new Blob([res.blob], { type: res.type })
+      : res.blob;
   }
 
   async function getAudioBlob(row, onStatus) {
@@ -384,6 +385,7 @@
     const result = el("div", "wvt-result");
     result.hidden = true;
     const text = el("div", "wvt-text");
+    text.dir = "auto";
     const actions = el("div", "wvt-actions");
     const toggle = el("button", "wvt-link wvt-toggle");
     toggle.type = "button";
@@ -420,30 +422,33 @@
   }
 
   function render(els, data) {
-    const hinglish = data.hinglish || "";
+    const roman = data.roman || data.hinglish || ""; // old cached transcripts
     const original = data.text || "";
     // Any script we romanise changes the text; if nothing changed it was already
     // Latin and there is nothing to toggle between.
-    const hasDev = !!hinglish && hinglish !== original;
+    const hasRoman = !!roman && roman !== original;
 
-    let showing = settings.style === "devanagari" || !hasDev ? "original" : "hinglish";
+    let showing = ["original", "devanagari"].includes(settings.style) || !hasRoman
+      ? "original" : "latin";
 
     const paint = () => {
-      if (settings.style === "both" && hasDev) {
+      if (settings.style === "both" && hasRoman) {
+        const originalNode = el("div", "wvt-secondary", original);
+        originalNode.dir = "auto";
         els.text.replaceChildren(
-          el("div", null, hinglish),
-          el("div", "wvt-secondary", original)
+          el("div", null, roman),
+          originalNode
         );
         els.toggle.hidden = true;
       } else {
-        els.text.textContent = showing === "hinglish" ? hinglish : original;
-        els.toggle.hidden = !hasDev;
-        els.toggle.textContent = showing === "hinglish" ? "Original script" : "Roman";
+        els.text.textContent = showing === "latin" ? roman : original;
+        els.toggle.hidden = !hasRoman;
+        els.toggle.textContent = showing === "latin" ? "Original script" : "Latin letters";
       }
     };
 
     els.toggle.onclick = () => {
-      showing = showing === "hinglish" ? "original" : "hinglish";
+      showing = showing === "latin" ? "original" : "latin";
       paint();
     };
 
@@ -451,8 +456,17 @@
     els.result.hidden = false;
     els.label.textContent = "Transcribe";
     els.btn.hidden = true;
-    els.status.textContent = data.lang && data.lang !== "hi" ? data.lang : "";
+    els.status.textContent = languageLabel(data.lang);
     els.status.className = "wvt-status";
+  }
+
+  function languageLabel(code) {
+    if (!code) return "";
+    try {
+      return new Intl.DisplayNames(["en"], { type: "language" }).of(code) || code;
+    } catch (_) {
+      return code;
+    }
   }
 
   function setBusy(els, msg) {
@@ -518,7 +532,6 @@
         type: "transcribe",
         base64,
         mimeType: blob.type || "audio/ogg",
-        language: settings.langMode === "hi" ? "hi" : null,
         diarize: !!settings.diarize
       });
 
@@ -529,7 +542,7 @@
 
       const data = {
         text,
-        hinglish: window.WVT_translit ? window.WVT_translit(text) : text,
+        roman: window.WVT_translit ? window.WVT_translit(text) : text,
         lang: res.language || "",
         ts: Date.now()
       };
@@ -554,16 +567,34 @@
     if (row.querySelector('[aria-label*="voice message" i], [aria-label*="voice note" i]')) {
       return true;
     }
+    // WhatsApp localises the labels and no longer always renders ptt-status.
+    // Voice notes have a transport button before the progress slider and a
+    // playback-speed button after it. Uploaded audio uses the same transport
+    // and slider, but shows WhatsApp's headphones icon instead of speed.
+    const slider = row.querySelector('[role="slider"]');
+    if (slider) {
+      const buttons = [...row.querySelectorAll("button")].filter(
+        (button) => !button.closest(".wvt-wrap")
+      );
+      const transport = buttons.some(
+        (button) => button.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      const speed = buttons.some(
+        (button) =>
+          (slider.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+          /\d\s*[.,]?\d*\s*[x×]/i.test(button.textContent || "")
+      );
+      const uploadedAudio = [...row.querySelectorAll("svg title")].some(
+        (title) => title.textContent === "ic-headphones-filled"
+      );
+      if (transport && (speed || uploadedAudio)) return true;
+    }
     return !!row.querySelector("audio");
   }
 
-  /**
-   * WhatsApp's bubble classes are generated atoms now (x1n2onr6, x78zum5, …) and
-   * there is no .message-in/.message-out to hook, so we hang the UI off the row
-   * itself and work out the side geometrically.
-   */
-  function isOutgoing(row) {
-    const anchor = row.querySelector(VOICE_HINTS) || row.firstElementChild;
+  /** WhatsApp's generated classes are unstable; use the play control's position. */
+  function isOnRight(row) {
+    const anchor = findTransportButton(row) || row.querySelector(VOICE_HINTS) || row.firstElementChild;
     if (!anchor) return false;
     const a = anchor.getBoundingClientRect();
     const r = row.getBoundingClientRect();
@@ -575,7 +606,7 @@
     row.dataset.wvtDone = "1";
 
     const els = buildUI(row);
-    els.wrap.classList.add(isOutgoing(row) ? "wvt-out" : "wvt-in");
+    els.wrap.classList.add(isOnRight(row) ? "wvt-right" : "wvt-left");
     row.appendChild(els.wrap);
 
     const cached = await cacheGet(msgId(row));

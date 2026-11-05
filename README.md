@@ -2,19 +2,19 @@
 
 A local, unpacked Chrome extension. Adds a **Transcribe** button under every voice
 note on web.whatsapp.com, sends the audio to **ElevenLabs Scribe v2**, and shows the
-text right in the chat — **in Latin letters**, whatever language it was spoken in.
+text right in the chat. The original script is shown by default, with a Latin-letter
+view available for supported writing systems.
 
-Hindi voice notes come back as Hinglish (`kal bhej doonga`), not Devanagari. Same for
-Urdu, Russian, Greek, Korean, Chinese, Thai, Amharic and 25 writing systems in total.
-One toggle flips any transcript back to its original script.
+Hindi voice notes can be read as Hinglish (`kal bhej doonga`). The same Latin-letter
+view works for Urdu, Russian, Greek, Korean, Chinese, Thai, Amharic and 25 writing
+systems in total. One toggle flips any transcript back to its original script.
 
 Bring your own ElevenLabs API key. Free and open source (MIT). No backend, no
 telemetry, no accounts — it runs only in your browser profile, only on
 `web.whatsapp.com`, and only talks to `api.elevenlabs.io`.
 
 Scribe v2 auto-detects and transcribes 90+ languages, including files that mix
-languages mid-sentence. The Hinglish romanisation is Hindi-specific; every other
-language comes back in its own script.
+languages mid-sentence. Language detection is always automatic.
 
 ## Install
 
@@ -79,7 +79,10 @@ Click **Transcribe** under any voice note. First run takes a few seconds; after 
 the transcript is cached locally and reappears instantly whenever that message
 scrolls back into view.
 
-- **देवनागरी / Hinglish** — flip the same transcript between scripts
+The button follows the voice note's on-screen side in both left-to-right and
+right-to-left WhatsApp layouts. Redo and Copy appear only after a transcript exists.
+
+- **Original script / Latin letters** — flip the same transcript between scripts
 - **Copy** — copies what's currently displayed
 - **Redo** — re-transcribes, ignoring the cache
 
@@ -102,6 +105,10 @@ element, fetches the audio, and **returns a resolved promise without calling the
 real `play()`**. The audio pipeline is never engaged, so there is no sound — this
 isn't muted playback, it's no playback. The `src` setter and the `Audio`
 constructor are patched too, to catch the URL even earlier.
+
+The hook checks audio file headers before accepting a blob, so an unrelated blob
+created at the same time cannot be uploaded as a voice note. The service worker
+uses the detected format for the upload filename and MIME type.
 
 Caveat, stated honestly: the extension has to click WhatsApp's own play control to
 make it download and decrypt. WhatsApp's internal state machine may therefore mark
@@ -200,11 +207,13 @@ plain vanilla JS with no dependencies and load under bare `node` for testing.
 
 ## Settings
 
+Script display and speaker separation save as soon as you change them. Save the API
+key separately; **Verify key** checks the value in the field without saving it.
+
 | Setting | What it does |
 | --- | --- |
 | API key | Stored in `chrome.storage.local`, never leaves your profile except in the request to ElevenLabs |
-| Show transcript as | Hinglish, Devanagari, or both stacked |
-| Language | Auto-detect (handles Hindi + English mixing) or force Hindi |
+| Show transcript as | Original script (default), Latin letters, or both stacked |
 | Separate speakers | Diarization, for forwarded multi-voice recordings |
 | Clear cache | Drops all stored transcripts |
 
