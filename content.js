@@ -569,7 +569,8 @@
     }
     // WhatsApp localises the labels and no longer always renders ptt-status.
     // Voice notes have a transport button before the progress slider and a
-    // playback-speed button after it, regardless of the interface language.
+    // playback-speed button after it. Uploaded audio uses the same transport
+    // and slider, but shows WhatsApp's headphones icon instead of speed.
     const slider = row.querySelector('[role="slider"]');
     if (slider) {
       const buttons = [...row.querySelectorAll("button")].filter(
@@ -583,7 +584,10 @@
           (slider.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING) &&
           /\d\s*[.,]?\d*\s*[x×]/i.test(button.textContent || "")
       );
-      if (transport && speed) return true;
+      const uploadedAudio = [...row.querySelectorAll("svg title")].some(
+        (title) => title.textContent === "ic-headphones-filled"
+      );
+      if (transport && (speed || uploadedAudio)) return true;
     }
     return !!row.querySelector("audio");
   }
