@@ -79,6 +79,9 @@ Click **Transcribe** under any voice note. First run takes a few seconds; after 
 the transcript is cached locally and reappears instantly whenever that message
 scrolls back into view.
 
+The button follows the voice note's on-screen side in both left-to-right and
+right-to-left WhatsApp layouts. Redo and Copy appear only after a transcript exists.
+
 - **Original script / Latin letters** — flip the same transcript between scripts
 - **Copy** — copies what's currently displayed
 - **Redo** — re-transcribes, ignoring the cache

@@ -385,6 +385,7 @@
     const result = el("div", "wvt-result");
     result.hidden = true;
     const text = el("div", "wvt-text");
+    text.dir = "auto";
     const actions = el("div", "wvt-actions");
     const toggle = el("button", "wvt-link wvt-toggle");
     toggle.type = "button";
@@ -432,9 +433,11 @@
 
     const paint = () => {
       if (settings.style === "both" && hasRoman) {
+        const originalNode = el("div", "wvt-secondary", original);
+        originalNode.dir = "auto";
         els.text.replaceChildren(
           el("div", null, roman),
-          el("div", "wvt-secondary", original)
+          originalNode
         );
         els.toggle.hidden = true;
       } else {
@@ -585,13 +588,9 @@
     return !!row.querySelector("audio");
   }
 
-  /**
-   * WhatsApp's bubble classes are generated atoms now (x1n2onr6, x78zum5, …) and
-   * there is no .message-in/.message-out to hook, so we hang the UI off the row
-   * itself and work out the side geometrically.
-   */
-  function isOutgoing(row) {
-    const anchor = row.querySelector(VOICE_HINTS) || row.firstElementChild;
+  /** WhatsApp's generated classes are unstable; use the play control's position. */
+  function isOnRight(row) {
+    const anchor = findTransportButton(row) || row.querySelector(VOICE_HINTS) || row.firstElementChild;
     if (!anchor) return false;
     const a = anchor.getBoundingClientRect();
     const r = row.getBoundingClientRect();
@@ -603,7 +602,7 @@
     row.dataset.wvtDone = "1";
 
     const els = buildUI(row);
-    els.wrap.classList.add(isOutgoing(row) ? "wvt-out" : "wvt-in");
+    els.wrap.classList.add(isOnRight(row) ? "wvt-right" : "wvt-left");
     row.appendChild(els.wrap);
 
     const cached = await cacheGet(msgId(row));
