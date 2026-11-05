@@ -103,6 +103,10 @@ real `play()`**. The audio pipeline is never engaged, so there is no sound — t
 isn't muted playback, it's no playback. The `src` setter and the `Audio`
 constructor are patched too, to catch the URL even earlier.
 
+The hook checks audio file headers before accepting a blob, so an unrelated blob
+created at the same time cannot be uploaded as a voice note. The service worker
+uses the detected format for the upload filename and MIME type.
+
 Caveat, stated honestly: the extension has to click WhatsApp's own play control to
 make it download and decrypt. WhatsApp's internal state machine may therefore mark
 the note as played and send a *played* receipt to the sender (blue mic). Suppressing

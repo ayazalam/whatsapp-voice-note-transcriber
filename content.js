@@ -255,7 +255,7 @@
       setTimeout(() => {
         if (pending.has(id)) {
           pending.delete(id);
-          resolve({ ok: false, error: "Timed out. WhatsApp did not start downloading the audio." });
+          resolve({ ok: false, error: "Could not capture valid audio from this note. Reload WhatsApp and try again." });
         }
       }, 30000);
     });
@@ -291,7 +291,9 @@
     if (!res.ok || !res.blob) {
       throw new Error(res.error || "Could not capture the audio.");
     }
-    return res.blob;
+    return res.type && res.type !== res.blob.type
+      ? new Blob([res.blob], { type: res.type })
+      : res.blob;
   }
 
   async function getAudioBlob(row, onStatus) {
